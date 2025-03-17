@@ -1,0 +1,4 @@
+langchain-gigachat
+langchain
+python-dotenv
+pytelegrambotapi 
