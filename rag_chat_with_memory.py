@@ -11,7 +11,7 @@ from langchain.schema import AIMessage, HumanMessage, SystemMessage
 import telebot
 from telebot import types
 
-# Конфигурация логирования
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -30,7 +30,7 @@ class RagChatWithMemory:
     def __init__(self):
         print("Инициализация чат-бота с памятью...")
         
-        # Инициализация GigaChat для чата
+        
         self.chat_model = GigaChat(
             credentials=GIGACHAT_API_KEY,
             scope=GIGACHAT_SCOPE,
@@ -38,7 +38,7 @@ class RagChatWithMemory:
             model="GigaChat"
         )
         
-        # Инициализация GigaChat для эмбеддингов
+     
         self.embedding_model = GigaChatEmbeddings(
             credentials=GIGACHAT_API_KEY,
             scope=GIGACHAT_SCOPE,
@@ -46,7 +46,7 @@ class RagChatWithMemory:
             verify_ssl_certs=False
         )
         
-        # Загрузка базы знаний и создание эмбеддингов
+       
         self.knowledge_base = self.load_knowledge_base(KNOWLEDGE_BASE_PATH)
         if not self.knowledge_base:
             sys.exit(1)
@@ -54,7 +54,7 @@ class RagChatWithMemory:
         if not self.embeddings:
             sys.exit(1)
             
-        # История диалогов и системное сообщение
+        
         self.conversation_history = {}
         self.system_message = SystemMessage(content="""
         Ты — полезный ассистент для студентов школы дизайна. Ты отвечаешь на вопросы о правилах поведения в школе.
@@ -72,7 +72,7 @@ class RagChatWithMemory:
         """)
 
     def load_knowledge_base(self, filepath: str) -> List[str]:
-        """Загрузка базы знаний из файла"""
+        
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -85,7 +85,7 @@ class RagChatWithMemory:
             return []
     
     def create_embeddings(self, fragments: List[str]) -> Dict[str, List[float]]:
-        """Создание эмбеддингов для фрагментов"""
+       
         try:
             documents = [Document(page_content=fragment) for fragment in fragments]
             fragment_embeddings = {}
@@ -101,24 +101,24 @@ class RagChatWithMemory:
             return {}
     
     def _get_user_history(self, user_id: str) -> List[Any]:
-        """Получение истории сообщений для пользователя"""
+        
         if user_id not in self.conversation_history:
             self.conversation_history[user_id] = [self.system_message]
         return self.conversation_history[user_id]
     
     def _add_to_history(self, user_id: str, message) -> None:
-        """Добавление сообщения в историю пользователя"""
+        
         if user_id not in self.conversation_history:
             self.conversation_history[user_id] = [self.system_message]
         
         self.conversation_history[user_id].append(message)
         
-        # Ограничение длины истории
+    
         if len(self.conversation_history[user_id]) > 10:
             self.conversation_history[user_id] = [self.system_message] + self.conversation_history[user_id][-9:]
     
     def find_relevant_fragments(self, query: str, top_n: int = 3) -> List[str]:
-        """Поиск релевантных фрагментов через косинусное сходство"""
+        
         try:
             query_embedding = self.embedding_model.embed_query(query)
             
@@ -137,35 +137,35 @@ class RagChatWithMemory:
             return []
     
     def process_query(self, user_id: str, query: str) -> str:
-        """Обработка запроса пользователя с учетом истории диалога"""
+        
         try:
-            # Сохранение запроса в историю
+            
             user_message = HumanMessage(content=query)
             self._add_to_history(user_id, user_message)
             
-            # Получение истории диалога
+           
             conversation_history = self._get_user_history(user_id)
             
-            # Поиск релевантных фрагментов
+            
             relevant_fragments = self.find_relevant_fragments(query)
             
             if not relevant_fragments:
-                # Если фрагменты не найдены, используем только историю
+               
                 response = self.chat_model.invoke(conversation_history)
                 self._add_to_history(user_id, AIMessage(content=response.content))
                 return response.content
             
-            # Добавление контекста к запросу
+         
             context = "\n\n".join(relevant_fragments)
             context_message = HumanMessage(
                 content=f"Вот контекст, который может помочь ответить на последний вопрос пользователя:\n\n{context}\n\nПожалуйста, используй этот контекст для ответа на последний вопрос."
             )
             
-            # Запрос к модели
+            
             messages = conversation_history + [context_message]
             response = self.chat_model.invoke(messages)
             
-            # Сохранение ответа в историю
+           
             self._add_to_history(user_id, AIMessage(content=response.content))
             
             return response.content
@@ -176,7 +176,7 @@ class RagChatWithMemory:
             return "Извините, произошла ошибка при обработке вашего запроса. Пожалуйста, попробуйте еще раз."
 
     def reset_history(self, user_id: str) -> None:
-        """Сброс истории диалога пользователя"""
+       
         if user_id in self.conversation_history:
             self.conversation_history[user_id] = [self.system_message]
             return True
@@ -184,16 +184,16 @@ class RagChatWithMemory:
 
 
 def run_telegram_bot():
-    """Основная функция Telegram-бота"""
+    
     if not TELEGRAM_BOT_TOKEN:
         logger.error("TELEGRAM_BOT_TOKEN не найден в переменных окружения")
         return
 
-    # Создание бота и инициализация RAG-чата
+   
     bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
     rag_chat = RagChatWithMemory()
 
-    # Обработчик /start
+ 
     @bot.message_handler(commands=['start'])
     def send_welcome(message):
         user_id = str(message.from_user.id)
@@ -208,7 +208,7 @@ def run_telegram_bot():
         )
         bot.send_message(message.chat.id, welcome_text)
 
-    # Обработчик /help
+    
     @bot.message_handler(commands=['help'])
     def send_help(message):
         help_text = (
@@ -226,7 +226,7 @@ def run_telegram_bot():
         )
         bot.send_message(message.chat.id, help_text)
 
-    # Обработчик /categories
+    
     @bot.message_handler(commands=['categories'])
     def show_categories(message):
         categories_text = (
@@ -242,7 +242,7 @@ def run_telegram_bot():
         )
         bot.send_message(message.chat.id, categories_text)
 
-    # Обработчик /reset
+    
     @bot.message_handler(commands=['reset'])
     def reset_conversation(message):
         user_id = str(message.from_user.id)
@@ -251,7 +251,7 @@ def run_telegram_bot():
         else:
             bot.send_message(message.chat.id, "История диалога уже пуста. Можете начать новый разговор!")
 
-    # Обработчик текстовых сообщений
+    
     @bot.message_handler(func=lambda message: True)
     def handle_message(message):
         user_id = str(message.from_user.id)
@@ -270,13 +270,13 @@ def run_telegram_bot():
                 "Извините, произошла ошибка при обработке вашего запроса. Пожалуйста, попробуйте еще раз."
             )
 
-    # Запуск бота
+   
     print("Telegram-бот запущен и готов отвечать на вопросы!")
     bot.infinity_polling()
 
 
 def main():
-    """Запуск чат-бота"""
+    
     run_telegram_bot()
 
 if __name__ == "__main__":
